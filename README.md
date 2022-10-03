@@ -30,6 +30,8 @@ The analysis code is stored in the <b><i>scripts</i></b> directory:
 
 <b><i>rda_files</i></b> stores fitted linear mixed-effects model outputs as .rda objects, corresponding to the R and package versions the authors used in their analyses.
 
+## Figures
+
 ## R and Package Versions
 
 Data processing and analyses were conducted in R version 3.6.2 (R Core Team, 2019). Linear mixed-effects models were run using the “glmer” function in the “lme4” package (version 1.1-23; (Bates et al. 2014)). 
