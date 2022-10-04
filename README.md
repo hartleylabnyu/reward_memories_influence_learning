@@ -18,7 +18,7 @@ Data for <i>N</i> = 89 children, adolescent, and adult participants are stored i
 
 <b>ProcessedTestData.csv</b> contains participants' choices during the Test Phase.
 
-## Analyses
+## Scripts
 
 The analysis code is stored in the <b><i>scripts</i></b> directory:
 
@@ -32,7 +32,9 @@ The analysis code is stored in the <b><i>scripts</i></b> directory:
 
 ## Figures
 
-## R and Package Versions
+The data visualizations and analyses, summarized in .png plots and .html tables, are stored in the <b><i>figures</i></b> directory.
+
+## R and Key Package Versions
 
 Data processing and analyses were conducted in R version 3.6.2 (R Core Team, 2019). Linear mixed-effects models were run using the “glmer” function in the “lme4” package (version 1.1-23; (Bates et al. 2014)). 
 
