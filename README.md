@@ -10,9 +10,9 @@ In order to examine the influence of prior reward associations on new learning, 
 
 Data for <i>N</i> = 89 children, adolescent, and adult participants are stored in the <b><i>data</i></b> directory:
 
-### Across all .csv files,
+<b>Across all .csv files,</b>
 
-<i>subID</i> - subject ID numbers, as strings
+<u>subID</u> subject ID numbers, as strings
 
 <i>subid</i> - subject ID numbers, as integers
 
@@ -50,9 +50,7 @@ Data for <i>N</i> = 89 children, adolescent, and adult participants are stored i
 
 The analysis code is stored in the <b><i>scripts</i></b> directory:
 
-### MotER_Learning_PlotFormatting.R
-
-includes common plotting variables; this script gets called by the .Rmd file below.
+<b>MotER_Learning_PlotFormatting.R</b> includes common plotting variables; this script gets called by the .Rmd file below.
 
 <b>MotER_Learning.Rmd</b> reproduces the data visualizations and analyses; this script relies on the .R file above, creates the .html file below, and calls .rda objects from their subdirectory.
 
