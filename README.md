@@ -92,4 +92,4 @@ R Core Team (2019). R: A language and environment for statistical computing. R F
 
 ## Contact
 
-If you have any questions about the data visualizations or analyses, please contact Camille Phaneuf (cphaneuf@g.harvard.edu) or Alexandra Cohen (ali.cohen@nyu.edu). This study was conducted in the Hartley Lab at New York University (https://www.hartleylab.org/).
+If you have any questions about the data visualizations or analyses, please contact Camille Phaneuf (cphaneuf@g.harvard.edu) or Alexandra Cohen (ali.cohen@nyu.edu). This study was conducted in the [Hartley Lab at New York University](https://www.hartleylab.org/).
