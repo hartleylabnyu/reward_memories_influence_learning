@@ -12,7 +12,7 @@ Data for <i>N</i> = 89 children, adolescent, and adult participants are stored i
 
 <b>Across all .csv files,</b>
 
-<u>subID</u> subject ID numbers, as strings
+* <i>subID</i> - subject ID numbers, as strings
 
 <i>subid</i> - subject ID numbers, as integers
 
