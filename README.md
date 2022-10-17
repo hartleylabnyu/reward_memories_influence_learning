@@ -10,27 +10,31 @@ In order to examine the influence of prior reward associations on new learning, 
 
 Data for <i>N</i> = 89 children, adolescent, and adult participants are stored in the <b><i>data</i></b> directory:
 
-See below for the <b>data dictionary across all .csv files</b>, described below.
+Participants' information contained across <b>multiple .csv files</b>.
 
-* <i>subID</i> - subject ID numbers, as strings
+* <i>subID</i> - participant ID numbers, as strings
 
-* <i>subid</i> - subject ID numbers, as integers
-
-* <i>Gender</i> - sex-assigned-at-birth (0 = males, 1 = females)
+* <i>subid</i> - participant ID numbers, as integers
 
 * <i>ExactAge</i> - age in years
 
 * <i>AgeGroup</i> - age in bins (1 = adults ages 18-25 years, 2 = adolescents ages 13-17 years, 3 = children ages 8-12 years)
 
+<b>ProcessedDemographicData.csv</b> contains participants' demographic information.
+
+* <i>Gender</i> - sex-assigned-at-birth (0 = males, 1 = females)
+
 * <i>Race</i> - self-identified race
 
 * <i>Ethnicity</i> - self-identified ethnicity
+
+<b>ProcessedLearningData.csv</b> contains participants' choices during the Learning Task.
 
 * <i>block</i> - numbered block of 30 trials (1 = first 30 trials, 2 = second 30 trials, 3 = third 30 trials, 4 = fourth 30 trials, 5 = fifth 30 trials, 6 = last 30 trials)
 
 * <i>rt</i> - reaction time in ms
 
-* (ProcessedLearningData.csv) <i>RewardCat</i> - whether faces or places were the high-reward category for the participant (e = faces, o = places); corresponds to the parity of subid
+* <i>RewardCat</i> - whether faces or places were the high-reward category for the participant (e = faces, o = places); corresponds to the parity of subid
 
 * <i>correctresponses</i> - accuracy of the trial-wise response (0 = incorrect, 1 = correct); defined as choosing the relatively higher reinforced card deck in each pair
 
@@ -38,11 +42,15 @@ See below for the <b>data dictionary across all .csv files</b>, described below.
 
 * <i>Instance</i> - presentation order of each trial type (e.g., "the second time a low trial type was seen by the participant")
 
+<b>ProcessedMemoryData.csv</b> contains participants' memory performance from the Memory Retrieval Tests.
+
 * <i>HighRewSourceMemBenefitDay2</i> - index of high-reward memory prioritization
+
+<b>ProcessedTestData.csv</b> contains participants' choices during the Test Phase.
 
 * <i>trialtype</i> - paired combination of the 6 card decks
 
-* (ProcessedTestData.csv) <i>RewardCat</i> - whether faces or places were the high-reward category for the participant (face = faces, scene = places); corresponds to the parity of subid
+* <i>RewardCat</i> - whether faces or places were the high-reward category for the participant (face = faces, scene = places); corresponds to the parity of subid
 
 * <i>choice</i> - trial-wise card deck choice from the 2 possible options
 
@@ -57,14 +65,6 @@ See below for the <b>data dictionary across all .csv files</b>, described below.
 * <i>NH</i> - card deck corresponding to the participant's novel stimulus that was relatively higher reinforced during learning
 
 * <i>NL</i> - card deck corresponding to the participant's novel stimulus that was relatively lower reinforced during learning
-
-<b>ProcessedDemographicData.csv</b> contains participants' demographic information.
-
-<b>ProcessedLearningData.csv</b> contains participants' choices during the Learning Task.
-
-<b>ProcessedMemoryData.csv</b> contains participants' memory performance from the Memory Retrieval Tests.
-
-<b>ProcessedTestData.csv</b> contains participants' choices during the Test Phase.
 
 ## Scripts
 
