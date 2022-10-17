@@ -10,23 +10,37 @@ In order to examine the influence of prior reward associations on new learning, 
 
 Data for <i>N</i> = 89 children, adolescent, and adult participants are stored in the <b><i>data</i></b> directory:
 
+<b>Across all .csv files,</b> 
+
+<i>subID</i> - subject ID numbers, as strings
+
+<i>subid</i> - subject ID numbers, as integers
+
 <b>ProcessedDemographicData.csv</b> contains participants' demographic information.
 
-<i>subID</i>: subject ID numbers, as strings
+<i>Gender</i> - sex-assigned-at-birth (0 denotes males, 1 denotes females)
 
-<i>subid</i>: subject ID numbers, as integers
+<i>ExactAge</i> - age in years
 
-<i>Gender</i>:sex-assigned-at-birth (0 denotes males, 1 denotes females)
+<i>AgeGroup</i> - age in bins (1 denotes adults ages 18-25 years, 2 denotes adolescents ages 13-17 years, 3 denotes children ages 8-12 years)
 
-<i>ExactAge</i>: age in years
+<i>Race</i> - self-identified race
 
-<i>AgeGroup</i>: age in bins (1 denotes adults ages 18-25 years, 2 denotes adolescents ages 13-17 years, 3 denotes children ages 8-12 years)
-
-<i>Race</i>: self-identified race
-
-<i>Ethnicity</i>: self-identified ethnicity
+<i>Ethnicity</i> - self-identified ethnicity
 
 <b>ProcessedLearningData.csv</b> contains participants' choices during the Learning Task.
+
+<i>block</i> - numbered block of 30 trials (1 denotes first 30 trials, 2 denotes second 30 trials, 3 denotes third 30 trials, 4 denotes fourth 30 trials, 5 denotes fifth 30 trials, 6 denotes last 30 trials)
+
+<i>rt</i> - reaction time in ms
+
+<i>RewardCat</i> - whether faces or places were the high-reward category for the participant (e denotes faces, o denotes places); corresponds to the parity of subid
+
+<i>correctresponses</i> - accuracy of the trial-wise response (0 denotes incorrect, 1 denotes correct); defined as choosing the relatively higher reinforced card deck in each pair
+
+<i>StimRewardType</i> - trial type (high denotes trial with a pair of previously high-reward stimuli, low denotes trial with a pair of previously low-reward stimuli, new denotes trial with novel stimuli)
+
+<i>Instance</i> - presentation order of each trial type (e.g., "the second time a low trial type was seen by the participant")
 
 <b>ProcessedMemoryData.csv</b> contains participants' memory performance from the Memory Retrieval Tests.
 
