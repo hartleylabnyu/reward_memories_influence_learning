@@ -10,7 +10,21 @@ In order to examine the influence of prior reward associations on new learning, 
 
 Data for <i>N</i> = 89 children, adolescent, and adult participants are stored in the <b><i>data</i></b> directory:
 
-<b>ProcessedDemographicData.csv</b> contains participants' demographic information, like their age, sex, race, and ethnicity.
+<b>ProcessedDemographicData.csv</b> contains participants' demographic information.
+
+<i>subID</i>: subject ID numbers, as strings
+
+<i>subid</i>: subject ID numbers, as integers
+
+<i>Gender</i>:sex-assigned-at-birth (0 denotes males, 1 denotes females)
+
+<i>ExactAge</i>: age in years
+
+<i>AgeGroup</i>: age in bins (1 denotes adults ages 18-25 years, 2 denotes adolescents ages 13-17 years, 3 denotes children ages 8-12 years)
+
+<i>Race</i>: self-identified race
+
+<i>Ethnicity</i>: self-identified ethnicity
 
 <b>ProcessedLearningData.csv</b> contains participants' choices during the Learning Task.
 
