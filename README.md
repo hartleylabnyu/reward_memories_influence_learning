@@ -1,6 +1,6 @@
 # reward_memories_influence_learning
 
-This repository contains the code required to reproduce the data visualizations and analyses reported in <b><i>Reward-Motivated Memories Influence New Learning Across Development</i></b>.
+This repository contains the code required to reproduce the data visualizations and analyses reported in [Reward-Motivated Memories Influence New Learning Across Development](http://learnmem.cshlp.org/content/29/11/421).
 
 ## Tasks Administered
 
@@ -10,37 +10,57 @@ In order to examine the influence of prior reward associations on new learning, 
 
 Data for <i>N</i> = 89 children, adolescent, and adult participants are stored in the <b><i>data</i></b> directory:
 
-<b>Across all .csv files,</b>
+See below for the <b>data dictionary across all .csv files</b>, described below.
 
 * <i>subID</i> - subject ID numbers, as strings
 
-<i>subid</i> - subject ID numbers, as integers
+* <i>subid</i> - subject ID numbers, as integers
+
+* <i>Gender</i> - sex-assigned-at-birth (0 = males, 1 = females)
+
+* <i>ExactAge</i> - age in years
+
+* <i>AgeGroup</i> - age in bins (1 = adults ages 18-25 years, 2 = adolescents ages 13-17 years, 3 = children ages 8-12 years)
+
+* <i>Race</i> - self-identified race
+
+* <i>Ethnicity</i> - self-identified ethnicity
+
+* <i>block</i> - numbered block of 30 trials (1 = first 30 trials, 2 = second 30 trials, 3 = third 30 trials, 4 = fourth 30 trials, 5 = fifth 30 trials, 6 = last 30 trials)
+
+* <i>rt</i> - reaction time in ms
+
+* (ProcessedLearningData.csv) <i>RewardCat</i> - whether faces or places were the high-reward category for the participant (e = faces, o = places); corresponds to the parity of subid
+
+* <i>correctresponses</i> - accuracy of the trial-wise response (0 = incorrect, 1 = correct); defined as choosing the relatively higher reinforced card deck in each pair
+
+* <i>StimRewardType</i> - trial type (high = trial with a pair of previously high-reward stimuli, low = trial with a pair of previously low-reward stimuli, new = trial with novel stimuli)
+
+* <i>Instance</i> - presentation order of each trial type (e.g., "the second time a low trial type was seen by the participant")
+
+* <i>HighRewSourceMemBenefitDay2</i> - index of high-reward memory prioritization
+
+* <i>trialtype</i> - paired combination of the 6 card decks
+
+* (ProcessedTestData.csv) <i>RewardCat</i> - whether faces or places were the high-reward category for the participant (face = faces, scene = places); corresponds to the parity of subid
+
+* <i>choice</i> - trial-wise card deck choice from the 2 possible options
+
+* <i>HH</i> - card deck corresponding to the participant's previously high-reward stimulus that was relatively higher reinforced during learning
+
+* <i>HL</i> - card deck corresponding to the participant's previously high-reward stimulus that was relatively lower reinforced during learning
+
+* <i>LH</i> - card deck corresponding to the participant's previously low-reward stimulus that was relatively higher reinforced during learning
+
+* <i>LL</i> - card deck corresponding to the participant's previously low-reward stimulus that was relatively lower reinforced during learning
+
+* <i>NH</i> - card deck corresponding to the participant's novel stimulus that was relatively higher reinforced during learning
+
+* <i>NL</i> - card deck corresponding to the participant's novel stimulus that was relatively lower reinforced during learning
 
 <b>ProcessedDemographicData.csv</b> contains participants' demographic information.
 
-<i>Gender</i> - sex-assigned-at-birth (0 denotes males, 1 denotes females)
-
-<i>ExactAge</i> - age in years
-
-<i>AgeGroup</i> - age in bins (1 denotes adults ages 18-25 years, 2 denotes adolescents ages 13-17 years, 3 denotes children ages 8-12 years)
-
-<i>Race</i> - self-identified race
-
-<i>Ethnicity</i> - self-identified ethnicity
-
 <b>ProcessedLearningData.csv</b> contains participants' choices during the Learning Task.
-
-<i>block</i> - numbered block of 30 trials (1 denotes first 30 trials, 2 denotes second 30 trials, 3 denotes third 30 trials, 4 denotes fourth 30 trials, 5 denotes fifth 30 trials, 6 denotes last 30 trials)
-
-<i>rt</i> - reaction time in ms
-
-<i>RewardCat</i> - whether faces or places were the high-reward category for the participant (e denotes faces, o denotes places); corresponds to the parity of subid
-
-<i>correctresponses</i> - accuracy of the trial-wise response (0 denotes incorrect, 1 denotes correct); defined as choosing the relatively higher reinforced card deck in each pair
-
-<i>StimRewardType</i> - trial type (high denotes trial with a pair of previously high-reward stimuli, low denotes trial with a pair of previously low-reward stimuli, new denotes trial with novel stimuli)
-
-<i>Instance</i> - presentation order of each trial type (e.g., "the second time a low trial type was seen by the participant")
 
 <b>ProcessedMemoryData.csv</b> contains participants' memory performance from the Memory Retrieval Tests.
 
