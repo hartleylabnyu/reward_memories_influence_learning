@@ -1,0 +1,1145 @@
+---
+title: "Reward-Motivated Memories Influence New Learning Across Development"
+author: "Written by Camille Phaneuf (cphaneuf@g.harvard.edu) with guidance from Alexandra Cohen (ali.cohen@emory.edu)"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+```{r setup_markdown, include = FALSE}
+#inputs: ProcessedDemographicData.csv, ProcessedLearningData.csv, ProcessedMemoryData.csv, ProcessedTestData.csv
+#computes: stats
+#         - summaries/descriptions of demographics
+#         - teasing apart the influences of age, trial, stimulus type, and reward source memory on choice accuracy 
+#           during learning
+#         - clarifying the influences of age, trial, and stimulus type on choice accuracy during learning by examining 
+#           choice reaction time
+#         - determining how age relates to value persistence following learning
+#outputs: plots (in figures directory, and embedded within MotER_Learning.html)
+#         - learning choice accuracy (depictions of full model, plus key main effects and interactions)
+#         - learning choice accuracy, with median split on reward source memory (depictions of full model, plus key 
+#           main effects and interactions)
+#         - learning choice reaction time
+#         - test phase choice
+knitr::opts_chunk$set(echo = FALSE,
+                      cache = TRUE,
+                      message = FALSE,
+                      warning = FALSE,
+                      fig.width = 9,
+                      fig.height = 7)
+```
+
+```{r load_libraries, include = FALSE}
+library(plyr)
+library(reshape2)
+library(ggplot2)
+library(Rmisc)
+library(lme4)
+library(lmerTest)
+library(sjPlot)
+library(ggeffects)
+library(effects)
+library(car)
+library(tidyverse)
+library(moments)
+library(gtools)
+library(GGally)
+library(rstatix)
+library(patchwork)
+```
+
+```{r get_processed_data}
+#find the project root
+root <- rprojroot::find_rstudio_root_file() 
+
+#for upcoming models, get path to scripts directory
+ScriptsDir <- file.path(root, 'scripts')
+
+#change to directory with processed data
+ProcessedDir <- file.path(root, 'data')
+setwd(ProcessedDir)
+
+#read in processed learning task dataframe
+learning = read.csv("ProcessedLearningData.csv") 
+
+#convert variable type for later analyses
+learning$rt <- as.numeric(as.character(learning$rt))
+
+#make stimulus type specific dataframes
+high_reward = subset(learning, StimRewardType == "high") 
+low_reward = subset(learning, StimRewardType == "low") 
+novel_reward = subset(learning, StimRewardType == "new") 
+
+#read in processed memory retrieval dataframe
+retData = read.csv("ProcessedMemoryData.csv")
+
+#convert variable type for later analyses
+retData$subid <- as.factor(retData$subid) 
+
+#read in processed test phase dataframe
+test = read.csv("ProcessedTestData.csv") 
+
+#read in demographic data
+demog <- read_csv("ProcessedDemographicData.csv")
+```
+
+```{r define_common_plotting_variables}
+#read in plot formatting file from same directory
+source("MotER_Learning_PlotFormatting.R")
+```
+
+# Demographics {.tabset}
+
+## Age Distribution
+
+### Full Sample (8-25 years)
+<b>Total <i>N</i>:</b> `r length(demog$AgeGroup)` <br>
+<b>Total Females:</b> `r sum(demog$Gender == 1)` <br>
+<b>Total Males:</b> `r sum(demog$Gender == 0)` <br>
+<b><i>Mean</i>:</b> `r mean(demog$ExactAge)` <br>
+<b><i>SD</i>:</b> `r sd(demog$ExactAge)` <br>
+
+### Children (8-12 years)
+<b>Total <i>N</i>:</b> `r sum(demog$AgeGroup == 3)` <br>
+<b>Total Females:</b> `r sum(demog$AgeGroup == 3 & demog$Gender == 1)` <br>
+<b>Total Males:</b> `r sum(demog$AgeGroup == 3 & demog$Gender == 0)` <br>
+<b><i>Mean</i>:</b> `r mean(demog$ExactAge[demog$AgeGroup == 3])` <br>
+<b><i>SD</i>:</b> `r sd(demog$ExactAge[demog$AgeGroup == 3])` <br>
+
+### Adolescents (13-17 years)
+<b>Total <i>N</i>:</b> `r sum(demog$AgeGroup == 2)` <br>
+<b>Total Females:</b> `r sum(demog$AgeGroup == 2 & demog$Gender == 1)` <br>
+<b>Total Males:</b> `r sum(demog$AgeGroup == 2 & demog$Gender == 0)` <br>
+<b><i>Mean</i>:</b> `r mean(demog$ExactAge[demog$AgeGroup == 2])` <br>
+<b><i>SD</i>:</b> `r sd(demog$ExactAge[demog$AgeGroup == 2])` <br>
+
+### Adults (18-25 years)
+<b>Total <i>N</i>:</b> `r sum(demog$AgeGroup == 1)` <br>
+<b>Total Females:</b> `r sum(demog$AgeGroup == 1 & demog$Gender == 1)` <br>
+<b>Total Males:</b> `r sum(demog$AgeGroup == 1 & demog$Gender == 0)` <br>
+<b><i>Mean</i>:</b> `r mean(demog$ExactAge[demog$AgeGroup == 1])` <br>
+<b><i>SD</i>:</b> `r sd(demog$ExactAge[demog$AgeGroup == 1])` <br>
+
+```{r age_gender_dist_plot}
+demog_plot <- demog[, c("ExactAge", "Gender")]
+demog_plot$Gender <- as.factor(as.character(demog_plot$Gender))
+demog_plot$Gender <- factor(demog_plot$Gender, levels = c(1, 0), labels = c("females", "males"))
+ggplot(data = demog_plot, aes(x = ExactAge, fill = Gender, color = Gender)) +
+  age_horizontal_lines +
+  age_format_y_axis +
+  age_format_x_axis +
+  geom_histogram(position = "stack", alpha = .66, breaks = seq(8, 26, by = 1)) +
+  labs(x = "Age (Years)", y = "Number of Participants") +
+  scale_color_manual(values = demog_color_list) +
+  scale_fill_manual(values = demog_color_list) +
+  moter_learning.theme
+ggsave("../figures/FigS5.png", width = 9, height = 7)
+```
+
+## Race
+<b>Total Asian:</b> `r sum(demog$Race == "Asian", na.rm = TRUE)` <br>
+<b>Total Black/African American:</b> `r sum(demog$Race == "Black/African American", na.rm = TRUE)` <br>
+<b>Total Caucasian/White:</b> `r sum(demog$Race == "Caucasian/White", na.rm = TRUE)` <br>
+<b>Total Mixed Race:</b> `r sum(demog$Race == "Mixed Race", na.rm = TRUE)` <br>
+<b>Total Native American:</b> `r sum(demog$Race == "Native American", na.rm = TRUE)` <br>
+<b>Total Did Not Report:</b> `r sum(is.na(demog$Race))` <br>
+
+## Ethnicity
+<b>Total Hispanic:</b> `r sum(demog$Ethnicity == "Yes")` <br>
+<b>Total Not Hispanic:</b> `r sum(demog$Ethnicity == "No")` <br>
+<b>Total Did Not Report:</b> `r sum(is.na(demog$Ethnicity))` <br>
+
+## Notes for Interpreting plot_model() Interactions with Age
+<b>For plots color-coded by Linear Age (Scaled):</b> [-1, 0, 1] (roughly) maps to [middle-aged child participant, middle-aged adolescent participant, middle-aged adult participant]<br>
+
+# Learning Task Plots {.tabset}
+
+## The Influence of Prior Reward on Future Learning Accuracy
+
+```{r learning_task_acc_plot_formatting}
+#relevel AgeGroup variable in order for age group facets to be plotted chronologically
+high_reward$AgeGroup <- factor(high_reward$AgeGroup, levels = c(3, 2, 1), labels = c("Children", "Adolescents", "Adults"))
+low_reward$AgeGroup <- factor(low_reward$AgeGroup, levels = c(3, 2, 1), labels = c("Children", "Adolescents", "Adults"))
+novel_reward$AgeGroup <- factor(novel_reward$AgeGroup, levels = c(3, 2, 1), labels = c("Children", "Adolescents", "Adults"))
+
+#change block variable type for calculating means
+high_reward$block <- as.factor(high_reward$block)
+low_reward$block <- as.factor(low_reward$block)
+novel_reward$block <- as.factor(novel_reward$block)
+
+#get means and standard errors for high reward, low reward, and new stimuli (for plots faceted by age group)
+mean_highAG <- high_reward %>% group_by(subID, AgeGroup, block) %>% summarise(m = mean(correctresponses))
+summarized_highAG <- summarySE(mean_highAG, measurevar = "m", groupvars = c("block", "AgeGroup"))
+mean_lowAG <- low_reward %>% group_by(subID, AgeGroup, block) %>% summarise(m = mean(correctresponses))
+summarized_lowAG <- summarySE(mean_lowAG, measurevar = "m", groupvars = c("block", "AgeGroup"))
+mean_novelAG <- novel_reward %>% group_by(subID, AgeGroup, block) %>% summarise(m = mean(correctresponses))
+summarized_novelAG <- summarySE(mean_novelAG, measurevar = "m", groupvars = c("block", "AgeGroup"))
+
+#set meaningful StimulusType labels
+summarized_highAG$StimulusType <- c("high reward images (70/30)")
+summarized_lowAG$StimulusType <- c("low reward images (70/30)")
+summarized_novelAG$StimulusType <- c("new images (80/20)")
+
+#combine all stimulus types into a single dataframe
+combined_graph <- rbind(summarized_highAG, summarized_lowAG, summarized_novelAG)
+```
+
+```{r learning_task_acc_plot}
+ggplot(data = combined_graph, aes(x = block, y = m, group = StimulusType, color = StimulusType)) +
+  horizontal_lines +
+  format_y_axis +
+  geom_point(data = combined_graph, aes(x = block, y = m, group = StimulusType, color = StimulusType), 
+             alpha = 1, size = 2.75) +
+  geom_line(size = 1) +
+  geom_errorbar(aes(ymin = m - se, ymax = m + se), width = .2, size = 1) +
+  facet_grid(cols = vars(AgeGroup)) +
+  labs(x = "Blocks", y = "Proportion Optimal Choice") +
+  scale_color_manual(values = learning_color_list) +
+  moter_learning.theme
+ggsave("../figures/Fig2A.png", width = 9, height = 7)
+```
+
+```{r trialwise_learning_task_acc_plot_formatting}
+#separate out block 1 trials
+high_reward_b1 = subset(high_reward, block == "1") 
+low_reward_b1 = subset(low_reward, block == "1") 
+novel_reward_b1 = subset(novel_reward, block == "1") 
+
+#get means and standard errors for high reward, low reward, and new stimuli (for trial-wise plots, faceted by age group)
+summarized_highAG_b1 <- summarySE(high_reward_b1, measurevar = "correctresponses", groupvars = c("AgeGroup", "Instance"))
+summarized_lowAG_b1 <- summarySE(low_reward_b1, measurevar = "correctresponses", groupvars = c("AgeGroup", "Instance"))
+summarized_novelAG_b1 <- summarySE(novel_reward_b1, measurevar = "correctresponses", groupvars = c("AgeGroup", "Instance"))
+
+#set meaningful StimulusType labels
+summarized_highAG_b1$StimulusType <- c("high reward images (70/30)")
+summarized_lowAG_b1$StimulusType <- c("low reward images (70/30)")
+summarized_novelAG_b1$StimulusType <- c("new images (80/20)")
+
+#combine all stimulus types into a single dataframe
+combined_trialwise_graph <- rbind(summarized_highAG_b1, summarized_lowAG_b1, summarized_novelAG_b1)
+```
+
+```{r trialwise_learning_task_acc_plot}
+ggplot(data = combined_trialwise_graph, aes(x = Instance, y = correctresponses, group = StimulusType, color = StimulusType)) +
+  trialwise_horizontal_lines +
+  trialwise_format_y_axis +
+  scale_x_continuous(breaks = seq(2, 10, by = 2)) +
+  geom_point(data = combined_trialwise_graph, aes(x = Instance, y = correctresponses, group = StimulusType, color = StimulusType), 
+             alpha = 1, size = 2.75) +
+  geom_line(size = 1) +
+  geom_errorbar(aes(ymin = correctresponses - se, ymax = correctresponses + se), width = .2, size = 1) +
+  facet_grid(cols = vars(AgeGroup)) +
+  labs(x = "Block 1 Trials", y = "Proportion Optimal Choice") +
+  scale_color_manual(values = learning_color_list) +
+  moter_learning.theme
+ggsave("../figures/FigS3.png", width = 9, height = 7)
+```
+
+## The Influence of Reward Source Memory on Future Learning Accuracy
+
+<b><i>Median</i>:</b> `r median(retData$HighRewSourceMemBenefitDay2)` <br>
+
+```{r learning_task_rew_source_mem_plot_formatting}
+#median split on day 2 reward source memory
+abovemed_day2rewsourcemem <- retData[retData$HighRewSourceMemBenefitDay2 >= median(retData$HighRewSourceMemBenefitDay2),]
+belowmed_day2rewsourcemem <- retData[retData$HighRewSourceMemBenefitDay2 < median(retData$HighRewSourceMemBenefitDay2),]
+
+#create high, low, and novel reward dataframes for above median reward source memory
+high_reward_abovemed <- high_reward[(high_reward$subid %in% abovemed_day2rewsourcemem$subid),]
+low_reward_abovemed <- low_reward[(low_reward$subid %in% abovemed_day2rewsourcemem$subid),]
+novel_reward_abovemed <- novel_reward[(novel_reward$subid %in% abovemed_day2rewsourcemem$subid),]
+
+#create high, low, and novel reward dataframes for below median day 2 reward source memory
+high_reward_belowmed <- high_reward[(high_reward$subid %in% belowmed_day2rewsourcemem$subid),]
+low_reward_belowmed <- low_reward[(low_reward$subid %in% belowmed_day2rewsourcemem$subid),]
+novel_reward_belowmed <- novel_reward[(novel_reward$subid %in% belowmed_day2rewsourcemem$subid),]
+
+#get means and standard errors for high reward, low reward, and new stimuli (for plots faceted by age group, for above median reward source memory)
+mean_abovemed_highAG <- high_reward_abovemed %>% group_by(subID, AgeGroup, block) %>% summarise(m = mean(correctresponses))
+summarized_abovemed_highAG <- summarySE(mean_abovemed_highAG, measurevar = "m", groupvars = c("block", "AgeGroup"))
+mean_abovemed_lowAG <- low_reward_abovemed %>% group_by(subID, AgeGroup, block) %>% summarise(m = mean(correctresponses))
+summarized_abovemed_lowAG <- summarySE(mean_abovemed_lowAG, measurevar = "m", groupvars = c("block", "AgeGroup"))
+mean_abovemed_novelAG <- novel_reward_abovemed %>% group_by(subID, AgeGroup, block) %>% summarise(m = mean(correctresponses))
+summarized_abovemed_novelAG <- summarySE(mean_abovemed_novelAG, measurevar = "m", groupvars = c("block", "AgeGroup"))
+
+#get means and standard errors for high reward, low reward, and new stimuli (for plots faceted by age group, for below reward median source memory)
+mean_belowmed_highAG <- high_reward_belowmed %>% group_by(subID, AgeGroup, block) %>% summarise(m = mean(correctresponses))
+summarized_belowmed_highAG <- summarySE(mean_belowmed_highAG, measurevar = "m", groupvars = c("block", "AgeGroup"))
+mean_belowmed_lowAG <- low_reward_belowmed %>% group_by(subID, AgeGroup, block) %>% summarise(m = mean(correctresponses))
+summarized_belowmed_lowAG <- summarySE(mean_belowmed_lowAG, measurevar = "m", groupvars = c("block", "AgeGroup"))
+mean_belowmed_novelAG <- novel_reward_belowmed %>% group_by(subID, AgeGroup, block) %>% summarise(m = mean(correctresponses))
+summarized_belowmed_novelAG <- summarySE(mean_belowmed_novelAG, measurevar = "m", groupvars = c("block", "AgeGroup"))
+
+#set meaningful StimulusType labels
+summarized_abovemed_highAG$StimulusType <- c("high reward images (70/30)")
+summarized_abovemed_lowAG$StimulusType <- c("low reward images (70/30)")
+summarized_abovemed_novelAG$StimulusType <- c("new images (80/20)")
+summarized_belowmed_highAG$StimulusType <- c("high reward images (70/30)")
+summarized_belowmed_lowAG$StimulusType <- c("low reward images (70/30)")
+summarized_belowmed_novelAG$StimulusType <- c("new images (80/20)")
+
+#combine all stimulus types into a single dataframe
+combined_abovemed_source_graph <- rbind(summarized_abovemed_highAG, summarized_abovemed_lowAG, summarized_abovemed_novelAG)
+combined_abovemed_source_graph$mem <- c("Greater high- vs. low-reward \ngeneral source memory")
+combined_belowmed_source_graph <- rbind(summarized_belowmed_highAG, summarized_belowmed_lowAG, summarized_belowmed_novelAG)
+combined_belowmed_source_graph$mem <- c("Lesser high- vs. low-reward \ngeneral source memory")
+combined_graph_rew_source_mem <- rbind(combined_abovemed_source_graph, combined_belowmed_source_graph)
+```
+
+```{r rew_source_mem_plot}
+retData <- merge(retData, demog, by = "subid")
+ggplot(data = retData, aes(x = ExactAge, y = HighRewSourceMemBenefitDay2)) +
+  geom_hline(yintercept = c(-0.3,-0.2,-0.1,0,0.1,0.2), colour = 'grey90') +
+  scale_y_continuous(breaks = c(-0.3,-0.2,-0.1,0,0.1,0.2)) +
+  geom_point(alpha = .66, size = 2.75, stroke = 0, color = silver) +
+  stat_smooth(method = "glm", formula = y ~ poly(x,2), fullrange = TRUE, color = "black", alpha = .33) +
+  labs(x = "Age", y = "General Reward Source Memory") +
+  agefits_format_x_axis +
+  moter_learning.theme + theme(plot.margin = margin(.5, .5, .5, .5, "cm"))
+ggsave("../figures/Fig3A.png", width = 4, height = 7)
+```
+
+```{r learning_task_rew_source_mem_plot}
+ggplot(data = combined_graph_rew_source_mem, aes(x = block, y = m, group = StimulusType, color = StimulusType)) +
+  horizontal_lines +
+  format_y_axis +
+  geom_point(data = combined_graph_rew_source_mem, aes(x = block, y = m, group = StimulusType, color = StimulusType), 
+             alpha = 1, size = 2.75) +
+  geom_line(size = 1) +
+  geom_errorbar(aes(ymin = m - se, ymax = m + se), width = .2, size = 1) +
+  facet_grid(rows = vars(mem), cols = vars(AgeGroup)) +
+  labs(x = "Blocks", y = "Proportion Optimal Choice") +
+  scale_color_manual(values = learning_color_list) +
+  moter_learning.theme
+ggsave("../figures/Fig3B.png", width = 9, height = 7)
+```
+
+# Learning Task Stats {.tabset}
+
+## The Influence of Prior Reward on Future Learning Accuracy
+<b>Best-fitting generalized linear mixed-effects model:</b><br>
+`learning_acc_intercept <- glmer(correctresponses ~ instanceScaled * StimRewardType * ageScaled + instanceScaled * StimRewardType * ageScaledsq + RewardCat + (1|subID), family = binomial, control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e6)), contrasts = list(StimRewardType = "contr.sum", RewardCat = "contr.sum"), data = combined_stats)`
+
+```{r learning_task_acc_rt_stats_formatting}
+#combine all stimulus types into a single dataframe
+combined_stats <- rbind(high_reward, low_reward, novel_reward)
+
+#scale age
+combined_stats$ageScaled <- scale(combined_stats$ExactAge) 
+combined_stats$ageScaledsq <- (combined_stats$ageScaled)^2 
+
+#scale instance
+combined_stats$instanceScaled <- scale(combined_stats$Instance)
+
+#relevel RewardCat variable to have more meaningful category labels
+combined_stats$RewardCat <- factor(combined_stats$RewardCat, levels = c('e', 'o'), labels = c("Faces", "Places"))
+
+#combine previously rewarded stimulus types into a single dataframe
+combined_stats_nonew <- rbind(high_reward, low_reward)
+
+#scale age
+combined_stats_nonew$ageScaled <- scale(combined_stats_nonew$ExactAge) 
+combined_stats_nonew$ageScaledsq <- (combined_stats_nonew$ageScaled)^2 
+
+#scale instance
+combined_stats_nonew$instanceScaled <- scale(combined_stats_nonew$Instance)
+
+#relevel RewardCat variable to have more meaningful category labels
+combined_stats_nonew$RewardCat <- factor(combined_stats_nonew$RewardCat, levels = c('e', 'o'), labels = c("Faces", "Places"))
+```
+
+```{r learning_task_acc_stats_determine_age}
+#linear model for age
+if (!file.exists(paste0(ScriptsDir, "/rda_files/learning_acc_agelin.rda"))) {
+  learning_acc_agelin <- glmer(correctresponses ~ instanceScaled * StimRewardType * ageScaled + 
+                                                  RewardCat + (1|subID), family = binomial, 
+                                                  control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e6)), 
+                                                  data = combined_stats)  
+  save(learning_acc_agelin, file = paste0(ScriptsDir, "/rda_files/learning_acc_agelin.rda"))
+} else {
+  load(paste0(ScriptsDir, "/rda_files/learning_acc_agelin.rda"))
+}
+
+#quadratic model for age
+if (!file.exists(paste0(ScriptsDir, "/rda_files/learning_acc_agesq.rda"))) {
+  learning_acc_agesq <- glmer(correctresponses ~ instanceScaled * StimRewardType * ageScaled + 
+                                                 instanceScaled * StimRewardType * ageScaledsq + 
+                                                 RewardCat + (1|subID), family = binomial, 
+                                                 control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e6)), 
+                                                 data = combined_stats)
+  save(learning_acc_agesq, file = paste0(ScriptsDir, "/rda_files/learning_acc_agesq.rda"))
+} else {
+  load(paste0(ScriptsDir, "/rda_files/learning_acc_agesq.rda"))
+}
+
+#test which model for age is best 
+anova(learning_acc_agelin,learning_acc_agesq) #OUTCOME: squared
+```
+
+```{r learning_task_acc_stats}
+#run intercept model
+if (!file.exists(paste0(ScriptsDir, "/rda_files/learning_acc_intercept.rda"))) {
+  learning_acc_intercept <- glmer(correctresponses ~ instanceScaled * StimRewardType * ageScaled + 
+                                                     instanceScaled * StimRewardType * ageScaledsq + 
+                                                     RewardCat + (1|subID), family = binomial, 
+                                                     control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e6)),
+                                                     contrasts = list(StimRewardType = "contr.sum", RewardCat = "contr.sum"),
+                                                     data = combined_stats) #converges
+  save(learning_acc_intercept, file = paste0(ScriptsDir, "/rda_files/learning_acc_intercept.rda"))
+} else {
+  load(paste0(ScriptsDir, "/rda_files/learning_acc_intercept.rda"))
+}
+
+#find significant effects and interactions
+Anova(learning_acc_intercept, type = "III")
+
+#inspect significant main effects
+plot_model(learning_acc_intercept, type = "pred", terms = c("instanceScaled")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Correct Responses", x = "Trial (Scaled)", y = "Correct Responses")
+plot_model(learning_acc_intercept, type = "pred", terms = c("StimRewardType")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Correct Responses", x = "Stimulus Type", y = "Correct Responses")
+plot_model(learning_acc_intercept, type = "pred", terms = c("ageScaled")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Correct Responses", x = "Linear Age (Scaled)", y = "Correct Responses")
+plot_model(learning_acc_intercept, type = "pred", terms = c("ageScaledsq")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Correct Responses", x = "Quadratic Age (Scaled)", y = "Correct Responses")
+
+#inspect significant 2-way interactions (for higher-order interactions, see Learning Task Plots and learning_task_acc_interaction_plot)
+plot_model(learning_acc_intercept, type = "pred", terms = c("instanceScaled","StimRewardType")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Correct Responses", x = "Trial (Scaled)", y = "Correct Responses", color = "Stimulus Type")
+plot_model(learning_acc_intercept, type = "pred", terms = c("instanceScaled","ageScaled")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Correct Responses", x = "Trial (Scaled)", y = "Correct Responses", color = "Linear Age (Scaled)")
+plot_model(learning_acc_intercept, type = "pred", terms = c("instanceScaled","ageScaledsq")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Correct Responses", x = "Trial (Scaled)", y = "Correct Responses", color = "Quadratic Age (Scaled)")
+
+#save main effects and interactions in a table - Anova output
+Predictors <- c("(Intercept)", "Trial Number", "Stimulus Type", "Linear Age", "Quadratic Age", 
+                "High-Reward Source Image Category", "Trial Number*Stimulus Type", 
+                "Trial Number*Linear Age", "Stimulus Type*Linear Age", 
+                "Trial Number*Quadratic Age", "Stimulus Type*Quadratic Age",
+                "Trial Number*Stimulus Type*Linear Age", "Trial Number*Stimulus Type*Quadratic Age")
+Chisq <- Anova(learning_acc_intercept, type = "III")$Chisq
+Df <- Anova(learning_acc_intercept, type = "III")$Df
+Pvalue <- Anova(learning_acc_intercept, type = "III")$`Pr(>Chisq)`
+learning_acc_intercept_df <- data.frame(Predictors, Chisq, Df, Pvalue)
+learning_acc_intercept_df <- rename(learning_acc_intercept_df, "P-value" = "Pvalue")
+tab_df(learning_acc_intercept_df, file = "../figures/table1a.html", title = "Supplemental Table 1A: Analysis of Deviance for Learning Task Performance Model Including Previously High-Reward, Previously Low-Reward, and Novel Stimuli", digits = 5)
+
+#save main effects and interactions in a table - summary output
+#levels(combined_stats$StimRewardType)
+#levels(combined_stats$RewardCat)
+SummPredictors <- c("(Intercept)", "Trial Number", "Stimulus Type (High)", "Stimulus Type (Low)", 
+                    "Linear Age", "Quadratic Age", "High-Reward Source Image Category (Face)",
+                    "Trial Number*Stimulus Type (High)", "Trial Number*Stimulus Type (Low)",
+                    "Trial Number*Linear Age", "Stimulus Type (High)*Linear Age", "Stimulus Type (Low)*Linear Age", 
+                    "Trial Number*Quadratic Age", "Stimulus Type (High)*Quadratic Age", "Stimulus Type (Low)*Quadratic Age",
+                    "Trial Number*Stimulus Type (High)*Linear Age", "Trial Number*Stimulus Type (Low)*Linear Age", 
+                    "Trial Number*Stimulus Type (High)*Quadratic Age", "Trial Number*Stimulus Type (Low)*Quadratic Age")
+SummOutputs <- as.data.frame(coef(summary(learning_acc_intercept)))
+learning_acc_summ_intercept_df <- cbind(SummPredictors, SummOutputs)
+summ_df_colnames <- c("Predictors", "Estimate", "Standard Error", "Z-value", "P-value")
+colnames(learning_acc_summ_intercept_df) <- summ_df_colnames
+tab_df(learning_acc_summ_intercept_df, file = "../figures/table1b.html", title = "Supplemental Table 1B: Learning Task Performance Analysis Including Previously High-Reward, Previously Low-Reward, and Novel Stimuli", digits = 5)
+```
+
+```{r learning_task_acc_interaction_plot_formatting}
+#get means and standard errors for participant choice (for interaction plot, faceted by block)
+combined_age_fits_graph <- summarySE(combined_stats, 
+                                     measurevar = "correctresponses", 
+                                     groupvars = c("subID", "block", "ExactAge", "StimRewardType"))
+
+#set meaningful block labels
+combined_age_fits_graph$block <- as.character(combined_age_fits_graph$block)
+combined_age_fits_graph$block <- replace(combined_age_fits_graph$block, 
+                                         combined_age_fits_graph$block == "1", "Block 1")
+combined_age_fits_graph$block <- replace(combined_age_fits_graph$block, 
+                                         combined_age_fits_graph$block == "2", "Block 2")
+combined_age_fits_graph$block <- replace(combined_age_fits_graph$block, 
+                                         combined_age_fits_graph$block == "3", "Block 3")
+combined_age_fits_graph$block <- replace(combined_age_fits_graph$block, 
+                                         combined_age_fits_graph$block == "4", "Block 4")
+combined_age_fits_graph$block <- replace(combined_age_fits_graph$block, 
+                                         combined_age_fits_graph$block == "5", "Block 5")
+combined_age_fits_graph$block <- replace(combined_age_fits_graph$block, 
+                                         combined_age_fits_graph$block == "6", "Block 6")
+combined_age_fits_graph$block <- as.factor(combined_age_fits_graph$block)
+
+#set meaningful StimRewardType labels
+combined_age_fits_graph$StimRewardType <- as.character(combined_age_fits_graph$StimRewardType)
+combined_age_fits_graph$StimRewardType <- replace(combined_age_fits_graph$StimRewardType, 
+                                                  combined_age_fits_graph$StimRewardType == "high", "high reward images (70/30)")
+combined_age_fits_graph$StimRewardType <- replace(combined_age_fits_graph$StimRewardType, 
+                                                  combined_age_fits_graph$StimRewardType == "low", "low reward images (70/30)")
+combined_age_fits_graph$StimRewardType <- replace(combined_age_fits_graph$StimRewardType, 
+                                                  combined_age_fits_graph$StimRewardType == "new", "new images (80/20)")
+combined_age_fits_graph$StimRewardType <- as.factor(combined_age_fits_graph$StimRewardType)
+
+#get means and standard errors for participant choice (for interaction plot, with fitted lines by block)
+combined_age_fits_2way_graph <- summarySE(combined_stats, 
+                                          measurevar = "correctresponses", 
+                                          groupvars = c("subID", "block", "ExactAge"))
+
+#set meaningful block labels
+combined_age_fits_2way_graph$block <- as.character(combined_age_fits_2way_graph$block)
+combined_age_fits_2way_graph$block <- replace(combined_age_fits_2way_graph$block, 
+                                              combined_age_fits_2way_graph$block == "1", "Block 1")
+combined_age_fits_2way_graph$block <- replace(combined_age_fits_2way_graph$block, 
+                                              combined_age_fits_2way_graph$block == "2", "Block 2")
+combined_age_fits_2way_graph$block <- replace(combined_age_fits_2way_graph$block, 
+                                              combined_age_fits_2way_graph$block == "3", "Block 3")
+combined_age_fits_2way_graph$block <- replace(combined_age_fits_2way_graph$block, 
+                                              combined_age_fits_2way_graph$block == "4", "Block 4")
+combined_age_fits_2way_graph$block <- replace(combined_age_fits_2way_graph$block, 
+                                              combined_age_fits_2way_graph$block == "5", "Block 5")
+combined_age_fits_2way_graph$block <- replace(combined_age_fits_2way_graph$block, 
+                                              combined_age_fits_2way_graph$block == "6", "Block 6")
+combined_age_fits_2way_graph$block <- as.factor(combined_age_fits_2way_graph$block)
+```
+
+```{r learning_task_acc_interaction_plot}
+#save main effect of stimulus type as a plot that matches the other figures
+stimtype_maineffect <- ggpredict(learning_acc_intercept, terms = c("StimRewardType"))
+ggplot(data = stimtype_maineffect, aes(x = x, y = predicted, group = x, color = x)) +
+  stimtype_horizontal_lines +
+  stimtype_format_y_axis +
+  geom_point(data = stimtype_maineffect, aes(x = x, y = predicted, group = x, color = x), 
+             alpha = 1, size = 2.75) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = .2, size = 1) +
+  labs(x = "Stimulus Type", y = "Linear Mixed-Effects Model\nPredictions of Optimal Choice") +
+  scale_color_manual(values = learning_color_list) +
+  scale_x_discrete(labels = c("high\n(70/30)", "low\n(70/30)", "new\n(80/20)")) +
+  moter_learning.theme + theme(legend.position = "none", plot.margin = margin(.5, .5, .5, .5, "cm"))
+ggsave("../figures/Fig2B.png", width = 4, height = 7)
+
+#age fits: 3-way interaction
+ggplot(data = combined_age_fits_graph, aes(x = ExactAge, y = correctresponses, color = StimRewardType, fill = StimRewardType)) +
+  agefits_horizontal_lines +
+  agefits_format_y_axis +
+  agefits_format_x_axis +
+  geom_point(data = combined_age_fits_graph, aes(x = ExactAge, y = correctresponses, color = StimRewardType), 
+             alpha = .66, size = 2.75, stroke = 0) +
+  geom_smooth(method = glm, formula = y ~ poly(x,2), alpha = .33) +
+  geom_line(stat = "smooth", method = "glm", formula = y ~ poly(x,2), alpha = 1) +
+  facet_grid(cols = vars(block)) +
+  labs(x = "Age (Years)", y = "Proportion Optimal Choice") +
+  scale_color_manual(values = learning_color_list) +
+  scale_fill_manual(values = learning_color_list) +
+  moter_learning.theme
+ggsave("../figures/FigS2.png", width = 9, height = 5)
+
+#age fits: 2-way interaction
+ggplot(data = combined_age_fits_2way_graph, aes(x = ExactAge, y = correctresponses, color = block, fill = block)) +
+  agefits_horizontal_lines +
+  agefits_format_y_axis +
+  agefits_format_x_axis +
+  geom_point(data = combined_age_fits_2way_graph, aes(x = ExactAge, y = correctresponses, color = block), 
+             alpha = .66, size = 2.75, stroke = 0) +
+  geom_smooth(method = glm, formula = y ~ poly(x,2), alpha = .33) +
+  geom_line(stat = "smooth", method = "glm", formula = y ~ poly(x,2), alpha = 1) +
+  labs(x = "Age (Years)", y = "Proportion Optimal Choice") +
+  scale_color_manual(values = full_color_list) +
+  scale_fill_manual(values = full_color_list) + 
+  guides(color = guide_legend(nrow = 1, ncol = 6, byrow = TRUE)) +
+  moter_learning.theme
+ggsave("../figures/FigS1.png", width = 9, height = 7)
+```
+
+<b>Best-fitting generalized linear mixed-effects model without new stimuli:</b><br>
+`learning_acc_nonew_intercept <- glmer(correctresponses ~ instanceScaled * StimRewardType * ageScaled + instanceScaled * StimRewardType * ageScaledsq + RewardCat + (1|subID), family = binomial, control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e6)), contrasts = list(StimRewardType = "contr.sum", RewardCat = "contr.sum"), data = combined_stats_nonew)`
+
+```{r learning_task_acc_nonew_stats}
+#run intercept model
+if (!file.exists(paste0(ScriptsDir, "/rda_files/learning_acc_nonew_intercept.rda"))) {
+  learning_acc_nonew_intercept <- glmer(correctresponses ~ instanceScaled * StimRewardType * ageScaled + 
+                                                           instanceScaled * StimRewardType * ageScaledsq + 
+                                                           RewardCat + (1|subID), family = binomial, 
+                                                           control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e6)), 
+                                                           contrasts = list(StimRewardType = "contr.sum", RewardCat = "contr.sum"),
+                                                           data = combined_stats_nonew) #converges
+  save(learning_acc_nonew_intercept, file = paste0(ScriptsDir, "/rda_files/learning_acc_nonew_intercept.rda"))
+} else {
+  load(paste0(ScriptsDir, "/rda_files/learning_acc_nonew_intercept.rda"))
+}
+
+#find significant effects and interactions
+Anova(learning_acc_nonew_intercept, type = "III")
+
+#inspect significant main effects
+plot_model(learning_acc_nonew_intercept, type = "pred", terms = c("instanceScaled")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Correct Responses", x = "Trial (Scaled)", y = "Correct Responses")
+plot_model(learning_acc_nonew_intercept, type = "pred", terms = c("StimRewardType")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Correct Responses", x = "Stimulus Type", y = "Correct Responses")
+plot_model(learning_acc_nonew_intercept, type = "pred", terms = c("ageScaled")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Correct Responses", x = "Linear Age (Scaled)", y = "Correct Responses")
+
+#inspect significant 2-way interactions
+plot_model(learning_acc_nonew_intercept, type = "pred", terms = c("instanceScaled","ageScaled")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Correct Responses", x = "Trial (Scaled)", y = "Correct Responses", color = "Linear Age (Scaled)")
+plot_model(learning_acc_nonew_intercept, type = "pred", terms = c("instanceScaled","ageScaledsq")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Correct Responses", x = "Trial (Scaled)", y = "Correct Responses", color = "Quadratic Age (Scaled)")
+
+#save main effects and interactions in a table - Anova
+Chisq <- Anova(learning_acc_nonew_intercept, type = "III")$Chisq
+Df <- Anova(learning_acc_nonew_intercept, type = "III")$Df
+Pvalue <- Anova(learning_acc_nonew_intercept, type = "III")$`Pr(>Chisq)`
+learning_acc_nonew_intercept_df <- data.frame(Predictors, Chisq, Df, Pvalue)
+learning_acc_nonew_intercept_df <- rename(learning_acc_nonew_intercept_df, "P-value" = "Pvalue")
+tab_df(learning_acc_nonew_intercept_df, file = "../figures/table1c.html", title = "Supplemental Table 1C: Analysis of Deviance for Learning Task Performance Model Including Previously High-Reward and Previously Low-Reward Stimuli", digits = 5)
+
+#save main effects and interactions in a table - summary output
+#levels(combined_stats_nonew$StimRewardType)
+#levels(combined_stats_nonew$RewardCat)
+SummPredictors_nonew <- c("(Intercept)", "Trial Number", "Stimulus Type (High)", "Linear Age", "Quadratic Age", 
+                          "High-Reward Source Image Category (Face)", "Trial Number*Stimulus Type (High)", 
+                          "Trial Number*Linear Age", "Stimulus Type (High)*Linear Age", 
+                          "Trial Number*Quadratic Age", "Stimulus Type (High)*Quadratic Age", 
+                          "Trial Number*Stimulus Type (High)*Linear Age", 
+                          "Trial Number*Stimulus Type (High)*Quadratic Age")
+SummOutputs <- as.data.frame(coef(summary(learning_acc_nonew_intercept)))
+learning_acc_nonew_summ_intercept_df <- cbind(SummPredictors_nonew, SummOutputs)
+colnames(learning_acc_nonew_summ_intercept_df) <- summ_df_colnames
+tab_df(learning_acc_nonew_summ_intercept_df, file = "../figures/table1d.html", title = "Supplemental Table 1D: Learning Task Performance Analysis Including Previously High-Reward and Previously Low-Reward Stimuli", digits = 5)
+```
+
+## The Influence of Prior Reward on Future Learning Reaction Time
+<b>Best-fitting generalized linear mixed-effects model:</b><br>
+`learning_rt_intercept <- lmer(rt ~ instanceScaled * StimRewardType * ageScaled + instanceScaled * StimRewardType * ageScaledsq + RewardCat + (1|subID), control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e6)), contrasts = list(StimRewardType = "contr.sum", RewardCat = "contr.sum"), data = combined_stats)`
+
+```{r learning_task_rt_stats}
+#run intercept model
+if (!file.exists(paste0(ScriptsDir, "/rda_files/learning_rt_intercept.rda"))) {
+  learning_rt_intercept <- lmer(rt ~ instanceScaled * StimRewardType * ageScaled + 
+                                     instanceScaled * StimRewardType * ageScaledsq + 
+                                     RewardCat + (1|subID), 
+                                     control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e6)),
+                                     contrasts = list(StimRewardType = "contr.sum", RewardCat = "contr.sum"),
+                                     data = combined_stats) #converges
+  save(learning_rt_intercept, file = paste0(ScriptsDir, "/rda_files/learning_rt_intercept.rda"))
+} else {
+  load(paste0(ScriptsDir, "/rda_files/learning_rt_intercept.rda"))
+}
+
+#find significant effects and interactions
+Anova(learning_rt_intercept, type = "III")
+
+#inspect significant main effects
+plot_model(learning_rt_intercept, type = "pred", terms = c("instanceScaled")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Reaction Time", x = "Trial (Scaled)", y = "Reaction Time")
+plot_model(learning_rt_intercept, type = "pred", terms = c("StimRewardType")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Reaction Time", x = "Stimulus Type", y = "Reaction Time")
+plot_model(learning_rt_intercept, type = "pred", terms = c("ageScaled")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Reaction Time", x = "Linear Age (Scaled)", y = "Reaction Time")
+plot_model(learning_rt_intercept, type = "pred", terms = c("ageScaledsq")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Reaction Time", x = "Quadratic Age (Scaled)", y = "Reaction Time")
+
+#inspect significant 2-way interactions (for higher-order interactions, see learning_task_rt_interaction_plot)
+plot_model(learning_rt_intercept, type = "pred", terms = c("instanceScaled","ageScaled")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Reaction Time", x = "Trial (Scaled)", y = "Reaction Time", color = "Linear Age (Scaled)")
+plot_model(learning_rt_intercept, type = "pred", terms = c("instanceScaled","ageScaledsq")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Reaction Time", x = "Trial (Scaled)", y = "Reaction Time", color = "Quadratic Age (Scaled)")
+plot_model(learning_rt_intercept, type = "pred", terms = c("ageScaledsq","StimRewardType")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Reaction Time", x = "Trial (Scaled)", y = "Reaction Time", color = "Stimulus Type")
+
+#save main effects and interactions in a table - Anova output
+Chisq <- Anova(learning_rt_intercept, type = "III")$Chisq
+Df <- Anova(learning_rt_intercept, type = "III")$Df
+Pvalue <- Anova(learning_rt_intercept, type = "III")$`Pr(>Chisq)`
+learning_rt_intercept_df <- data.frame(Predictors, Chisq, Df, Pvalue)
+learning_rt_intercept_df <- rename(learning_rt_intercept_df, "P-value" = "Pvalue")
+tab_df(learning_rt_intercept_df, file = "../figures/table2a.html", title = "Supplemental Table 2A: Analysis of Deviance for Learning Task Reaction Time Model Including Previously High-Reward, Previously Low-Reward, and Novel Stimuli", digits = 5)
+
+#save main effects and interactions in a table - summary output
+SummOutputs <- as.data.frame(coef(summary(learning_rt_intercept)))
+learning_rt_summ_intercept_df <- cbind(SummPredictors, SummOutputs)
+summ_rt_df_colnames <- c("Predictors", "Estimate", "Standard Error", "Df", "Z-value", "P-value")
+colnames(learning_rt_summ_intercept_df) <- summ_rt_df_colnames
+tab_df(learning_rt_summ_intercept_df, file = "../figures/table2b.html", title = "Supplemental Table 2B: Learning Task Reaction Time Analysis Including Previously High-Reward, Previously Low-Reward, and Novel Stimuli", digits = 5)
+```
+
+```{r learning_task_rt_interaction_plot_formatting}
+#get means and standard errors for participant choice (for interaction plot, faceted by block)
+combined_age_fits_rt_graph <- summarySE(combined_stats, 
+                                        measurevar = "rt", 
+                                        groupvars = c("subID", "block", "ExactAge", "StimRewardType"),
+                                        na.rm = TRUE)
+
+#set meaningful block labels
+combined_age_fits_rt_graph$block <- as.character(combined_age_fits_rt_graph$block)
+combined_age_fits_rt_graph$block <- replace(combined_age_fits_rt_graph$block, 
+                                            combined_age_fits_rt_graph$block == "1", "Block 1")
+combined_age_fits_rt_graph$block <- replace(combined_age_fits_rt_graph$block, 
+                                            combined_age_fits_rt_graph$block == "2", "Block 2")
+combined_age_fits_rt_graph$block <- replace(combined_age_fits_rt_graph$block, 
+                                            combined_age_fits_rt_graph$block == "3", "Block 3")
+combined_age_fits_rt_graph$block <- replace(combined_age_fits_rt_graph$block, 
+                                            combined_age_fits_rt_graph$block == "4", "Block 4")
+combined_age_fits_rt_graph$block <- replace(combined_age_fits_rt_graph$block, 
+                                            combined_age_fits_rt_graph$block == "5", "Block 5")
+combined_age_fits_rt_graph$block <- replace(combined_age_fits_rt_graph$block, 
+                                            combined_age_fits_rt_graph$block == "6", "Block 6")
+combined_age_fits_rt_graph$block <- as.factor(combined_age_fits_rt_graph$block)
+
+#set meaningful StimRewardType labels
+combined_age_fits_rt_graph$StimRewardType <- as.character(combined_age_fits_rt_graph$StimRewardType)
+combined_age_fits_rt_graph$StimRewardType <- replace(combined_age_fits_rt_graph$StimRewardType, 
+                                                     combined_age_fits_rt_graph$StimRewardType == "high", "high reward images (70/30)")
+combined_age_fits_rt_graph$StimRewardType <- replace(combined_age_fits_rt_graph$StimRewardType, 
+                                                     combined_age_fits_rt_graph$StimRewardType == "low", "low reward images (70/30)")
+combined_age_fits_rt_graph$StimRewardType <- replace(combined_age_fits_rt_graph$StimRewardType, 
+                                                     combined_age_fits_rt_graph$StimRewardType == "new", "new images (80/20)")
+combined_age_fits_rt_graph$StimRewardType <- as.factor(combined_age_fits_rt_graph$StimRewardType)
+```
+
+```{r learning_task_rt_interaction_plot}
+#age fits: 3-way interaction
+ggplot(data = combined_age_fits_rt_graph, aes(x = ExactAge, y = rt, color = StimRewardType, fill = StimRewardType)) +
+  agefits_rt_horizontal_lines +
+  agefits_rt_format_y_axis +
+  agefits_format_x_axis +
+  geom_point(data = combined_age_fits_rt_graph, aes(x = ExactAge, y = rt, color = StimRewardType), 
+             alpha = .66, size = 2.75, stroke = 0) +
+  geom_smooth(method = glm, formula = y ~ poly(x,2), alpha = .33) +
+  geom_line(stat = "smooth", method = "glm", formula = y ~ poly(x,2), alpha = 1) +
+  facet_grid(cols = vars(block)) +
+  labs(x = "Age (Years)", y = "Mean Reaction Time (ms)") +
+  scale_color_manual(values = learning_color_list) +
+  scale_fill_manual(values = learning_color_list) +
+  moter_learning.theme
+ggsave("../figures/FigS4.png", width = 9, height = 5)
+```
+
+<b>Best-fitting generalized linear mixed-effects model without new stimuli:</b><br>
+`learning_rt_nonew_intercept <- lmer(rt ~ instanceScaled * StimRewardType * ageScaled + instanceScaled * StimRewardType * ageScaledsq + RewardCat + (1|subID), control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e6)), contrasts = list(StimRewardType = "contr.sum", RewardCat = "contr.sum"), data = combined_stats_nonew)`
+
+```{r learning_task_rt_nonew_stats}
+#run intercept model
+if (!file.exists(paste0(ScriptsDir, "/rda_files/learning_rt_nonew_intercept.rda"))) {
+  learning_rt_nonew_intercept <- lmer(rt ~ instanceScaled * StimRewardType * ageScaled + 
+                                           instanceScaled * StimRewardType * ageScaledsq + 
+                                           RewardCat + (1|subID),  
+                                           control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e6)), 
+                                           contrasts = list(StimRewardType = "contr.sum", RewardCat = "contr.sum"),
+                                           data = combined_stats_nonew) #converges
+  save(learning_rt_nonew_intercept, file = paste0(ScriptsDir, "/rda_files/learning_rt_nonew_intercept.rda"))
+} else {
+  load(paste0(ScriptsDir, "/rda_files/learning_rt_nonew_intercept.rda"))
+}
+
+#find significant effects and interactions
+Anova(learning_rt_nonew_intercept, type = "III")
+
+#inspect significant main effects
+plot_model(learning_rt_nonew_intercept, type = "pred", terms = c("instanceScaled")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Reaction Time", x = "Trial (Scaled)", y = "Reaction Time")
+plot_model(learning_rt_nonew_intercept, type = "pred", terms = c("StimRewardType")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Reaction Time", x = "Stimulus Type", y = "Reaction Time")
+plot_model(learning_rt_nonew_intercept, type = "pred", terms = c("ageScaled")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Reaction Time", x = "Linear Age (Scaled)", y = "Reaction Time")
+plot_model(learning_rt_nonew_intercept, type = "pred", terms = c("ageScaledsq")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Reaction Time", x = "Quadratic Age (Scaled)", y = "Reaction Time")
+
+#inspect significant 2-way interactions
+plot_model(learning_rt_nonew_intercept, type = "pred", terms = c("instanceScaled","ageScaled")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Reaction Time", x = "Trial (Scaled)", y = "Reaction Time", color = "Linear Age (Scaled)")
+plot_model(learning_rt_nonew_intercept, type = "pred", terms = c("instanceScaled","ageScaledsq")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Reaction Time", x = "Trial (Scaled)", y = "Reaction Time", color = "Quadratic Age (Scaled)")
+plot_model(learning_rt_nonew_intercept, type = "pred", terms = c("ageScaledsq","StimRewardType")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Reaction Time", x = "Trial (Scaled)", y = "Reaction Time", color = "Stimulus Type")
+
+#save main effects and interactions in a table - Anova output
+Chisq <- Anova(learning_rt_nonew_intercept, type = "III")$Chisq
+Df <- Anova(learning_rt_nonew_intercept, type = "III")$Df
+Pvalue <- Anova(learning_rt_nonew_intercept, type = "III")$`Pr(>Chisq)`
+learning_rt_nonew_intercept_df <- data.frame(Predictors, Chisq, Df, Pvalue)
+learning_rt_nonew_intercept_df <- rename(learning_rt_nonew_intercept_df, "P-value" = "Pvalue")
+tab_df(learning_rt_nonew_intercept_df, file = "../figures/table2c.html", title = "Supplemental Table 2C: Analysis of Deviance for Learning Task Reaction Time Model Including Previously High-Reward and Previously Low-Reward Stimuli", digits = 5)
+
+#save main effects and interactions in a table - summary output
+SummOutputs <- as.data.frame(coef(summary(learning_rt_nonew_intercept)))
+learning_rt_nonew_summ_intercept_df <- cbind(SummPredictors_nonew, SummOutputs)
+colnames(learning_rt_nonew_summ_intercept_df) <- summ_rt_df_colnames
+tab_df(learning_rt_nonew_summ_intercept_df, file = "../figures/table2d.html", title = "Supplemental Table 2D: Learning Task Reaction Time Analysis Including Previously High-Reward and Previously Low-Reward Stimuli", digits = 5)
+```
+
+## The Influence of Reward Source Memory on Future Learning Accuracy
+<b>Best-fitting regression:</b><br>
+`mem_regression_agesq <- lm(HighRewSourceMemBenefitDay2 ~ ageScaled + ageScaledsq + RewardCat, data = retData)`
+
+```{r rew_source_mem_stats}
+#append RewardCat column
+RewardCatCol <- combined_stats[, c("subid", "RewardCat")]
+RewardCatCol$subid <- as.factor(RewardCatCol$subid)
+RewardCatCol_nodups <- RewardCatCol[!duplicated(RewardCatCol$subid), ]
+retData_withRewardCat <- merge(retData, RewardCatCol_nodups, by = "subid")
+
+#scale age
+retData_withRewardCat$ageScaled <- scale(retData_withRewardCat$ExactAge) 
+retData_withRewardCat$ageScaledsq <- (retData_withRewardCat$ageScaled)^2 
+
+#linear model for age
+mem_regression_agelin <- lm(HighRewSourceMemBenefitDay2 ~ ageScaled + RewardCat, data = retData_withRewardCat)
+
+#quadratic model for age
+mem_regression_agesq <- lm(HighRewSourceMemBenefitDay2 ~ ageScaled + ageScaledsq + RewardCat, data = retData_withRewardCat)
+
+#test which model for age is best 
+anova(mem_regression_agelin, mem_regression_agesq) #OUTCOME: squared
+
+#find significant effects
+summary(mem_regression_agesq)
+
+#inspect significant main effects
+plot_model(mem_regression_agesq) 
+```
+
+<b>Best-fitting generalized linear mixed-effects model:</b><br>
+`Quadratic age model did not converge.`
+
+```{r learning_task_rew_source_mem_stats_formatting}
+#join memory measures from day 2 retrieval data to all learning task data
+retData_simplified <- retData[, c("subid", "HighRewSourceMemBenefitDay2")]
+combined_stats$subid <- as.factor(combined_stats$subid)
+combined_stats <- full_join(combined_stats, retData_simplified, by = "subid")
+
+#join memory measures from day 2 retrieval data to previously rewarded learning task data
+combined_stats_nonew$subid <- as.factor(combined_stats_nonew$subid)
+combined_stats_nonew <- full_join(combined_stats_nonew, retData_simplified, by = "subid")
+```
+
+```{r learning_task_rew_source_mem_stats}
+#run intercept model
+#learning_source_intercept <- glmer(correctresponses ~ instanceScaled * StimRewardType * ageScaled * HighRewSourceMemBenefitDay2 + 
+                                                      #instanceScaled * StimRewardType * ageScaledsq * HighRewSourceMemBenefitDay2 + 
+                                                      #RewardCat + (1|subID), family = binomial, 
+                                                      #control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e6)), 
+                                                      #contrasts = list(StimRewardType = "contr.sum", RewardCat = "contr.sum"), 
+                                                      #data = combined_stats) #doesn't converge
+```
+
+<b>Best-fitting generalized linear mixed-effects model without new stimuli:</b><br>
+`learning_source_nonew_intercept <- glmer(correctresponses ~ instanceScaled * StimRewardType * ageScaled * HighRewSourceMemBenefitDay2 + instanceScaled * StimRewardType * ageScaledsq * HighRewSourceMemBenefitDay2 + RewardCat + (1|subID), family = binomial, control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e6)), contrasts = list(StimRewardType = "contr.sum", RewardCat = "contr.sum"), data = combined_stats_nonew)`
+
+```{r learning_task_rew_source_mem_nonew_stats}
+#run intercept model
+if (!file.exists(paste0(ScriptsDir, "/rda_files/learning_source_nonew_intercept.rda"))) {
+  learning_source_nonew_intercept <- glmer(correctresponses ~ instanceScaled * StimRewardType * ageScaled * HighRewSourceMemBenefitDay2 + 
+                                                              instanceScaled * StimRewardType * ageScaledsq * HighRewSourceMemBenefitDay2 + 
+                                                              RewardCat + (1|subID), family = binomial, 
+                                                              control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e6)), 
+                                                              contrasts = list(StimRewardType = "contr.sum", RewardCat = "contr.sum"), 
+                                                              data = combined_stats_nonew) #converges
+  save(learning_source_nonew_intercept, file = paste0(ScriptsDir, "/rda_files/learning_source_nonew_intercept.rda"))
+} else {
+  load(paste0(ScriptsDir, "/rda_files/learning_source_nonew_intercept.rda"))
+}
+
+#find significant effects and interactions
+Anova(learning_source_nonew_intercept, type = "III")
+
+#inspect significant main effects
+plot_model(learning_source_nonew_intercept, type = "pred", terms = c("instanceScaled")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Correct Responses", x = "Trial (Scaled)", y = "Correct Responses")
+plot_model(learning_source_nonew_intercept, type = "pred", terms = c("StimRewardType")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Correct Responses", x = "Stimulus Type", y = "Correct Responses")
+plot_model(learning_source_nonew_intercept, type = "pred", terms = c("ageScaled")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Correct Responses", x = "Linear Age (Scaled)", y = "Correct Responses")
+
+#inspect significant 2-way interactions (for higher-order interactions, see Learning Task Plots and learning_task_rew_source_mem_nonew_interaction_plot)
+plot_model(learning_source_nonew_intercept, type = "pred", terms = c("instanceScaled","ageScaled")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Correct Responses", x = "Trial (Scaled)", y = "Correct Responses", color = "Linear Age (Scaled)")
+plot_model(learning_source_nonew_intercept, type = "pred", terms = c("instanceScaled","HighRewSourceMemBenefitDay2")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Correct Responses", x = "Trial (Scaled)", y = "Correct Responses", color = "General Reward Source Memory")
+plot_model(learning_source_nonew_intercept, type = "pred", terms = c("instanceScaled","ageScaledsq")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Correct Responses", x = "Trial (Scaled)", y = "Correct Responses", color = "Quadratic Age (Scaled)")
+plot_model(learning_source_nonew_intercept, type = "pred", terms = c("ageScaledsq","StimRewardType")) + theme_minimal() + 
+  labs(title = "Predicted Probabilities of Correct Responses", x = "Quadratic Age (Scaled)", y = "Correct Responses", color = "Stimulus Type")
+
+#save main effects and interactions in a table - Anova output
+Predictors <- c("(Intercept)", "Trial Number", "Stimulus Type", "Linear Age", 
+                "General Reward Source Memory", "Quadratic Age", 
+                "High-Reward Source Image Category", "Trial Number*Stimulus Type", 
+                "Trial Number*Linear Age", "Stimulus Type*Linear Age", 
+                "Trial Number*General Reward Source Memory", 
+                "Stimulus Type*General Reward Source Memory",
+                "Linear Age*General Reward Source Memory",
+                "Trial Number*Quadratic Age", "Stimulus Type*Quadratic Age",
+                "General Reward Source Memory*Quadratic Age",
+                "Trial Number*Stimulus Type*Linear Age", 
+                "Trial Number*Stimulus Type*General Reward Source Memory",
+                "Trial Number*Linear Age*General Reward Source Memory",
+                "Stimulus Type*Linear Age*General Reward Source Memory",
+                "Trial Number*Stimulus Type*Quadratic Age",
+                "Trial Number*General Reward Source Memory*Quadratic Age",
+                "Stimulus Type*General Reward Source Memory*Quadratic Age",
+                "Trial Number*Stimulus Type*Linear Age*General Reward Source Memory",
+                "Trial Number*Stimulus Type*General Reward Source Memory*Quadratic Age")
+Chisq <- Anova(learning_source_nonew_intercept, type = "III")$Chisq
+Df <- Anova(learning_source_nonew_intercept, type = "III")$Df
+Pvalue <- Anova(learning_source_nonew_intercept, type = "III")$`Pr(>Chisq)`
+learning_source_nonew_intercept_df <- data.frame(Predictors, Chisq, Df, Pvalue)
+learning_source_nonew_intercept_df <- rename(learning_source_nonew_intercept_df, "P-value" = "Pvalue")
+tab_df(learning_source_nonew_intercept_df, file = "../figures/table3a.html", title = "Supplemental Table 3A: Analysis of Deviance for Individual Differences in Learning Model Including Previously High-Reward and Previously Low-Reward Stimuli", digits = 5)
+
+#save main effects and interactions in a table - summary output
+SummOutputs <- as.data.frame(coef(summary(learning_source_nonew_intercept)))
+SummPredictors_source <- c("(Intercept)", "Trial Number", "Stimulus Type (High)", "Linear Age",
+                           "General Reward Source Memory", "Quadratic Age", 
+                           "High-Reward Source Image Category (Face)", "Trial Number*Stimulus Type (High)",
+                           "Trial Number*Linear Age", "Stimulus Type (High)*Linear Age",
+                           "Trial Number*General Reward Source Memory", 
+                           "Stimulus Type (High)*General Reward Source Memory",
+                           "Linear Age*General Reward Source Memory",
+                           "Trial Number*Quadratic Age", "Stimulus Type (High)*Quadratic Age",
+                           "General Reward Source Memory*Quadratic Age",
+                           "Trial Number*Stimulus Type (High)*Linear Age",
+                           "Trial Number*Stimulus Type (High)*General Reward Source Memory",
+                           "Trial Number*Linear Age*General Reward Source Memory",
+                           "Stimulus Type (High)*Linear Age*General Reward Source Memory",
+                           "Trial Number*Stimulus Type (High)*Quadratic Age",
+                           "Trial Number*General Reward Source Memory*Quadratic Age",
+                           "Stimulus Type (High)*General Reward Source Memory*Quadratic Age",
+                           "Trial Number*Stimulus Type (High)*Linear Age*General Reward Source Memory",
+                           "Trial Number*Stimulus Type (High)*General Reward Source Memory*Quadratic Age")
+learning_source_nonew_summ_intercept_df <- cbind(SummPredictors_source, SummOutputs)
+colnames(learning_source_nonew_summ_intercept_df) <- summ_df_colnames 
+tab_df(learning_source_nonew_summ_intercept_df, file = "../figures/table3b.html", title = "Supplemental Table 3B: Individual Differences in Learning Analysis Including Previously High-Reward and Previously Low-Reward Stimuli", digits = 5)
+```
+
+```{r learning_task_rew_source_mem_nonew_interaction_plot_formatting}
+#get means and standard errors for participant choice (for first interaction plot faceted by median reward source memory)
+abovemed <- rbind(high_reward_abovemed, low_reward_abovemed)
+belowmed <- rbind(high_reward_belowmed, low_reward_belowmed)
+summarized_abovemed_ContAge <- summarySE(abovemed, 
+                                         measurevar = "correctresponses", 
+                                         groupvars = c("subID", "block", "ExactAge"))
+summarized_belowmed_ContAge <- summarySE(belowmed, 
+                                         measurevar = "correctresponses", 
+                                         groupvars = c("subID", "block", "ExactAge"))
+
+#combine all stimulus types into a single dataframe
+summarized_abovemed_ContAge$mem <- c("Greater high- vs. low-reward \ngeneral source memory")
+summarized_belowmed_ContAge$mem <- c("Lesser high- vs. low-reward \ngeneral source memory")
+combined_source_interaction1_graph <- rbind(summarized_abovemed_ContAge, summarized_belowmed_ContAge)
+
+#set meaningful block labels
+combined_source_interaction1_graph$block <- as.character(combined_source_interaction1_graph$block)
+combined_source_interaction1_graph$block <- replace(combined_source_interaction1_graph$block, 
+                                                    combined_source_interaction1_graph$block == "1", "Block 1")
+combined_source_interaction1_graph$block <- replace(combined_source_interaction1_graph$block, 
+                                                    combined_source_interaction1_graph$block == "2", "Block 2")
+combined_source_interaction1_graph$block <- replace(combined_source_interaction1_graph$block, 
+                                                    combined_source_interaction1_graph$block == "3", "Block 3")
+combined_source_interaction1_graph$block <- replace(combined_source_interaction1_graph$block, 
+                                                    combined_source_interaction1_graph$block == "4", "Block 4")
+combined_source_interaction1_graph$block <- replace(combined_source_interaction1_graph$block, 
+                                                    combined_source_interaction1_graph$block == "5", "Block 5")
+combined_source_interaction1_graph$block <- replace(combined_source_interaction1_graph$block, 
+                                                    combined_source_interaction1_graph$block == "6", "Block 6")
+combined_source_interaction1_graph$block <- as.factor(combined_source_interaction1_graph$block)
+
+#get means and standard errors for participant choice (for second interaction plot faceted by median reward source memory)
+summarized_abovemed_highContAge <- summarySE(high_reward_abovemed, 
+                                             measurevar = "correctresponses", 
+                                             groupvars = c("subID", "StimRewardType", "ExactAge"))
+summarized_abovemed_lowContAge <- summarySE(low_reward_abovemed, 
+                                            measurevar = "correctresponses", 
+                                            groupvars = c("subID", "StimRewardType", "ExactAge"))
+summarized_belowmed_highContAge <- summarySE(high_reward_belowmed, 
+                                             measurevar = "correctresponses", 
+                                             groupvars = c("subID", "StimRewardType", "ExactAge"))
+summarized_belowmed_lowContAge <- summarySE(low_reward_belowmed, 
+                                            measurevar = "correctresponses", 
+                                            groupvars = c("subID", "StimRewardType", "ExactAge"))
+
+#set meaningful StimulusType labels
+summarized_abovemed_highContAge$StimulusType <- c("high reward images (70/30)")
+summarized_abovemed_lowContAge$StimulusType <- c("low reward images (70/30)")
+summarized_belowmed_highContAge$StimulusType <- c("high reward images (70/30)")
+summarized_belowmed_lowContAge$StimulusType <- c("low reward images (70/30)")
+
+#combine all stimulus types into a single dataframe
+combined_abovemed_source_interaction2_graph <- rbind(summarized_abovemed_highContAge, summarized_abovemed_lowContAge)
+combined_abovemed_source_interaction2_graph$mem <- c("Greater high- vs. low-reward \ngeneral source memory")
+combined_belowmed_source_interaction2_graph <- rbind(summarized_belowmed_highContAge, summarized_belowmed_lowContAge)
+combined_belowmed_source_interaction2_graph$mem <- c("Lesser high- vs. low-reward \ngeneral source memory")
+combined_source_interaction2_graph <- rbind(combined_abovemed_source_interaction2_graph, combined_belowmed_source_interaction2_graph)
+```
+
+```{r learning_task_rew_source_mem_nonew_interaction_plot}
+#instanceScaled:HighRewSourceMemBenefitDay2:ageScaledsq
+ggplot(data = combined_source_interaction1_graph, aes(x = ExactAge, y = correctresponses, color = block, fill = block)) +
+  agefits_horizontal_lines +
+  agefits_format_y_axis +
+  geom_point(data = combined_source_interaction1_graph, aes(x = ExactAge, y = correctresponses, color = block), 
+             alpha = .66, size = 2.75, stroke = 0) +
+  geom_smooth(method = glm, formula = y ~ poly(x,2), alpha = .33) +
+  geom_line(stat = "smooth", method = "glm", formula = y ~ poly(x,2), alpha = 1) +
+  facet_grid(cols = vars(mem)) +
+  labs(x = "Age", y = "Proportion Optimal Choice") +
+  agefits_format_x_axis +
+  scale_color_manual(values = full_color_list) +
+  scale_fill_manual(values = full_color_list) +
+  guides(color = guide_legend(nrow = 1, ncol = 6, byrow = TRUE)) +
+  moter_learning.theme 
+ggsave("../figures/Fig3C.png", width = 7, height = 5)
+
+#StimRewardType:HighRewSourceMemBenefitDay2:ageScaledsq
+ggplot(data = combined_source_interaction2_graph, aes(x = ExactAge, y = correctresponses, color = StimulusType, fill = StimulusType)) +
+  agefits_horizontal_lines +
+  agefits_format_y_axis +
+  geom_point(data = combined_source_interaction2_graph, aes(x = ExactAge, y = correctresponses, color = StimulusType), 
+             alpha = .66, size = 2.75, stroke = 0) +
+  geom_smooth(method = glm, formula = y ~ poly(x,2), alpha = .33) +
+  geom_line(stat = "smooth", method = "glm", formula = y ~ poly(x,2), alpha = 1) +
+  facet_grid(cols = vars(mem)) +
+  labs(x = "Age", y = "Proportion Optimal Choice") +
+  agefits_format_x_axis +
+  scale_color_manual(values = learning_nonew_color_list) +
+  scale_fill_manual(values = learning_nonew_color_list) +
+  moter_learning.theme 
+ggsave("../figures/Fig3D.png", width = 7, height = 5)
+```
+
+# Test Phase Plots {.tabset}
+
+## The Influence of Prior Reward on Test Phase Choices
+
+```{r test_phase_plot_formatting}
+#initialize dataframes
+test_graph = data.frame()
+
+#get list of subs
+subid = unique(test$subid)
+
+#find relevant choice counts for each sub
+for (s in 1:length(subid)) {
+  #consider choices for each sub individually
+  currsub_num = subid[s]
+  currsub_data <- filter(test, subid == currsub_num)
+  
+  #while there are 15 different test phase trial types, we are only interested in HH:LH and HL:LL
+  currsub_data <- currsub_data %>% mutate(normedtrialtype = case_when(grepl(paste(currsub_data[1, "HH"], currsub_data[1, "LH"], sep = ""), 
+                                                                            trialtype) ~ "HH:LH",
+                                                                      grepl(paste(currsub_data[1, "LH"], currsub_data[1, "HH"], sep = ""), 
+                                                                            trialtype) ~ "HH:LH",
+                                                                      grepl(paste(currsub_data[1, "HL"], currsub_data[1, "LL"], sep = ""), 
+                                                                            trialtype) ~ "HL:LL",
+                                                                      grepl(paste(currsub_data[1, "LL"], currsub_data[1, "HL"], sep = ""), 
+                                                                            trialtype) ~ "HL:LL"))
+  currsub_data$normedtrialtype[is.na(currsub_data$normedtrialtype)] <- "ignore"
+ 
+  #initialize high reward choice counts for pairings of interest
+  HH_HHLH = 0
+  HL_HLLL = 0
+  
+  #for each normed trial type...
+  for (n in 1:length(currsub_data$normedtrialtype)) {
+    #...count the number of HH chosen in HH:LH pairs
+    if (currsub_data[n, "normedtrialtype"] == "HH:LH") {
+      if (currsub_data[n, "choice"] == currsub_data[n, "HH"]) { 
+        HH_HHLH = HH_HHLH + 1
+      }
+    }
+    #...count the number of HL chosen in HL:LL pairs
+    if (currsub_data[n, "normedtrialtype"] == "HL:LL") {
+      if (currsub_data[n, "choice"] == currsub_data[n, "HL"]) { 
+        HL_HLLL = HL_HLLL + 1
+      }
+    }
+  }
+  
+  #add choices to test phase dataframe to be plotted
+  test_graph[s, "sub"] <- currsub_data[1, "subid"]
+  test_graph[s, "cont_age"] <- currsub_data[1, "ExactAge"]
+  test_graph[s, "reward_cat"] <- currsub_data[1, "RewardCat"]
+  test_graph[s, "HH_HHLH_mean"] <- (HH_HHLH / 6)
+  test_graph[s, "HL_HLLL_mean"] <- (HL_HLLL / 6)
+}
+
+#simplify dataframe for test phase plot and stats
+keep_cols <- c("sub","cont_age","HH_HHLH_mean","HL_HLLL_mean","reward_cat")
+test_graph_simp <- test_graph[,keep_cols]
+
+#change to more informative column names (for legend in test phase plot)
+names(test_graph_simp)[names(test_graph_simp) == "HH_HHLH_mean"] <- "In 70%:70% Pair"
+names(test_graph_simp)[names(test_graph_simp) == "HL_HLLL_mean"] <- "In 30%:30% Pair"
+
+#create long dataframe for test phase plot
+test_graph_long <- pivot_longer(test_graph_simp, c("In 70%:70% Pair","In 30%:30% Pair"), values_to = "Proportion Chosen", names_to = "Pairing Type")
+
+#change variable types for plotting
+test_graph_long$`Pairing Type` <- factor(test_graph_long$`Pairing Type`, levels=c("In 70%:70% Pair","In 30%:30% Pair"))
+test_graph_long$sub <- as.factor(test_graph_long$sub)
+```
+
+```{r test_phase_plot}
+ggplot(data = test_graph_long, aes(x = cont_age, y = `Proportion Chosen`, color = `Pairing Type`, fill = `Pairing Type`)) +
+  test_horizontal_lines +
+  geom_hline(aes(yintercept = 0.5), linetype = "dashed") +
+  test_format_y_axis +
+  geom_point(alpha = .66, size = 2.75, stroke = 0) +
+  geom_smooth(method = lm, alpha = .33) +
+  geom_line(stat = "smooth", method = "lm", alpha = 1) +
+  labs(x = "Age", y = "Proportion High Reward Choice") +
+  age_format_x_axis +
+  scale_color_manual(values = test_color_list) +
+  scale_fill_manual(values = test_color_list) +
+  moter_learning.theme
+ggsave("../figures/Fig4.png", width = 9, height = 7)
+```
+
+# Test Phase Stats {.tabset}
+
+## The Influence of Prior Reward on Test Phase Choices
+<b>Regressions:</b><br>
+HH_HHLH_regression <- lm(HH_HHLH_mean ~ ageScaled + reward_cat, data = test_graph)<br>
+HL_HLLL_regression <- lm(HL_HLLL_mean ~ ageScaled + reward_cat, data = test_graph)<br>
+
+```{r test_phase_stats_formatting}
+#scale age for lmer model
+test_graph_long$ageScaled <- as.numeric(scale(test_graph_long$cont_age))
+
+#change sub variable type for regressions
+test_graph$sub <- as.factor(test_graph$sub)
+
+#scale age for regressions
+test_graph$ageScaled <- scale(test_graph$cont_age) 
+```
+
+```{r test_phase_stats_determine_age}
+#linear model for age
+#test_agelin <- lmer(`Proportion Chosen` ~ `Pairing Type` * ageScaled + 
+                                          #reward_cat + (1|sub), control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e6)), 
+                                          #data = test_graph_long) #singular boundary fit
+```
+
+```{r test_phase_stats}
+#HH_HHLH regression
+HH_HHLH_regression <- lm(HH_HHLH_mean ~ ageScaled + reward_cat, data = test_graph)
+summary(HH_HHLH_regression)
+plot_model(HH_HHLH_regression) 
+
+#save main effects in a table 
+Predictors <- c("(Intercept)", "Linear Age", "High-Reward Source Image Category (Place)")
+Estimate <- summary(HH_HHLH_regression)$coefficients
+HH_HHLH_regression_df <- data.frame(Predictors, Estimate)
+HH_HHLH_regression_df <- rename(HH_HHLH_regression_df, "Standard Error" = "Std..Error")
+HH_HHLH_regression_df <- rename(HH_HHLH_regression_df, "T-value" = "t.value")
+HH_HHLH_regression_df <- rename(HH_HHLH_regression_df, "P-value" = "Pr...t..")
+tab_df(HH_HHLH_regression_df, file = "../figures/table4a.html", title = "Supplemental Table 4A: Test Phase Analysis for 70%:70% Pairings", digits = 5)
+
+#HL_HLLL regression
+HL_HLLL_regression <- lm(HL_HLLL_mean ~ ageScaled + reward_cat, data = test_graph)
+summary(HL_HLLL_regression)
+plot_model(HL_HLLL_regression) 
+
+#save main effects in a table 
+Estimate <- summary(HL_HLLL_regression)$coefficients
+HL_HLLL_regression_df <- data.frame(Predictors, Estimate)
+HL_HLLL_regression_df <- rename(HL_HLLL_regression_df, "Standard Error" = "Std..Error")
+HL_HLLL_regression_df <- rename(HL_HLLL_regression_df, "T-value" = "t.value")
+HL_HLLL_regression_df <- rename(HL_HLLL_regression_df, "P-value" = "Pr...t..")
+tab_df(HL_HLLL_regression_df, file = "../figures/table4b.html", title = "Supplemental Table 4B: Test Phase Analysis for 30%:30% Pairings", digits = 5)
+```
